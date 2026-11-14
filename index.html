@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Última Milla | Simulador de capacidad</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#172033;--muted:#64748b;--line:#e2e8f0;--blue:#2457d6;--green:#087f5b;--red:#b42318;--amber:#9a6700}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{background:#14264a;color:#fff;padding:30px 18px}header .wrap,main{max-width:1100px;margin:auto}header p{color:#dbe6ff;margin:6px 0 0}h1{margin:0;font-size:clamp(1.6rem,4vw,2.3rem)}main{padding:22px 16px 48px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 4px 16px #1720330a}.wide{grid-column:1/-1}h2{font-size:1.1rem;margin:0 0 14px}.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}label{display:block;font-weight:650;font-size:.92rem}input,select{display:block;width:100%;margin-top:6px;padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:var(--ink);font:inherit}small,.muted{color:var(--muted)}button{border:0;border-radius:10px;padding:12px 16px;background:var(--blue);color:white;font-weight:700;font:inherit;cursor:pointer}button.secondary{background:#e8eefc;color:#1c3f9e}button:hover{filter:brightness(.96)}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.status{border-radius:12px;padding:14px;font-weight:750;margin-bottom:14px}.ok{background:#e6f6ef;color:var(--green)}.bad{background:#fff0ef;color:var(--red)}.warn{background:#fff6df;color:var(--amber)}.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.metric{padding:12px;border:1px solid var(--line);border-radius:12px}.metric span{display:block;color:var(--muted);font-size:.8rem}.metric strong{font-size:1.25rem;display:block;margin-top:4px}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.92rem}th,td{text-align:left;padding:9px;border-bottom:1px solid var(--line);white-space:nowrap}th{color:var(--muted);font-weight:650}.note{font-size:.9rem;color:var(--muted)}.pill{display:inline-block;padding:3px 8px;border-radius:999px;background:#eef2ff;color:#304ca0;font-size:.78rem;font-weight:700}.footer{margin-top:18px;color:var(--muted);font-size:.85rem}
+@media(max-width:700px){.grid,.fields{grid-template-columns:1fr}.wide{grid-column:auto}.metrics{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>Última Milla · Simulador de capacidad</h1><p>Calcula tiempos, reparto por persona, materiales y coste para los kits V y C.</p></div></header>
+<main>
+<div class="grid">
+<section class="card">
+<h2>Entradas del escenario</h2>
+<div class="fields">
+<label>Pedido total (kits Q)<input id="q" type="number" min="0" step="1" value="660"></label>
+<label>Proporción de kits C (0 a 1)<input id="p" type="number" min="0" max="1" step="0.01" value="0.40"></label>
+<label>Opción de mejora<select id="option"><option value="ref">Referencia (sin mejora)</option><option value="A">A · Disposición en U</option><option value="B">B · Cuarta persona</option><option value="C">C · Carro doble contenedor</option></select></label>
+<label>Minutos netos por persona<input id="minutes" type="number" min="1" step="1" value="420"></label>
+<label>Bolsas / soportes disponibles<input id="stock" type="number" min="0" step="1" value="700"></label>
+</div>
+<div class="actions"><button id="calculate">Calcular escenario</button><button class="secondary" id="test1">Prueba 1 · Referencia</button><button class="secondary" id="test2">Prueba 2 · Opción A</button><button class="secondary" id="test3">Prueba 3 · Opción B</button></div>
+<p class="note">Los platos principales se mantienen fijos en 720. Las opciones A, B y C son excluyentes.</p>
+</section>
+<section class="card">
+<h2>Resultado de factibilidad</h2>
+<div id="status" class="status warn">Introduce los datos y calcula.</div>
+<div class="metrics">
+<div class="metric"><span>Tiempo estándar V</span><strong id="tv">—</strong></div>
+<div class="metric"><span>Tiempo estándar C</span><strong id="tc">—</strong></div>
+<div class="metric"><span>Tiempo medio</span><strong id="tm">—</strong></div>
+<div class="metric"><span>Capacidad laboral</span><strong id="labor">—</strong></div>
+<div class="metric"><span>Límite por material</span><strong id="material">—</strong></div>
+<div class="metric"><span>Coste incremental / turno</span><strong id="cost">—</strong></div>
+</div>
+</section>
+<section class="card wide">
+<h2>Reparto del pedido</h2>
+<div id="summary" class="muted">Aquí aparecerá el reparto después del cálculo.</div>
+<div class="table-wrap"><table><thead><tr><th>Persona</th><th>Kits V</th><th>Kits C</th><th>Carga (min)</th><th>Tiempo disponible</th><th>Estado</th></tr></thead><tbody id="workers"><tr><td colspan="6">Sin cálculo todavía.</td></tr></tbody></table></div>
+</section>
+<section class="card">
+<h2>Coste y productividad</h2>
+<div class="metrics">
+<div class="metric"><span>Coste incremental diario</span><strong id="daily">—</strong></div>
+<div class="metric"><span>Productividad verificada</span><strong id="productivity">—</strong></div>
+<div class="metric"><span>Kits realizables estimados</span><strong id="maxkits">—</strong></div>
+</div>
+<p class="note" id="costnote">La inversión se amortiza en 20 turnos. En B se agrega el coste operativo de 85 € por turno.</p>
+</section>
+<section class="card">
+<h2>Datos del modelo</h2>
+<ul class="note">
+<li>Turno neto predeterminado: 420 min = 25 200 s por persona.</li>
+<li>Suplemento: 15 % sobre el tiempo normal manual, incluida la marcha.</li>
+<li>Materiales: máximo 720 platos principales y el stock de bolsas/soportes indicado.</li>
+<li>Reparto: primero kits C y después V, asignando cada kit al puesto menos cargado.</li>
+</ul>
+</section>
+</div>
+<p class="footer">Modelo académico con datos sintéticos del caso. No elimina controles, separaciones ni rutinas programadas. La simulación no sustituye la validación del proceso real.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const fmt=(n,d=1)=>Number(n).toLocaleString('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d});
+const euro=n=>new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:2}).format(n);
+const OPTIONS={
+ ref:{name:'Referencia',people:3,distV:18,distC:30,a:18,b:22,c:12,d:20,e:16,cost:0},
+ A:{name:'A · Disposición en U',people:3,distV:10,distC:14,a:18,b:22,c:12,d:20,e:16,cost:400/20},
+ B:{name:'B · Cuarta persona',people:4,distV:18,distC:30,a:18,b:22,c:12,d:20,e:16,cost:120/20+85},
+ C:{name:'C · Carro doble contenedor',people:3,distV:18,distC:30,a:12,b:20,c:12,d:18,e:16,cost:900/20}
+};
+function routeTimes(o){
+ const marchPerMeter=1; // 12 m / promedio W de 12 s
+ const normalV=o.a+o.b+o.d+o.e+o.distV*marchPerMeter;
+ const normalC=o.a+o.b+o.c+o.d+o.e+o.distC*marchPerMeter;
+ return {tv:normalV*1.15,tc:normalC*1.15};
+}
+function distribute(qv,qc,tv,tc,people,windowSec){
+ const workers=Array.from({length:people},(_,i)=>({name:'Persona '+(i+1),v:0,c:0,load:0}));
+ // Greedy: each next kit goes to the worker with the smallest accumulated load.
+ for(const [type,count,time] of [['c',qc,tc],['v',qv,tv]]){
+  for(let j=0;j<count;j++){
+   let best=0;
+   for(let k=1;k<workers.length;k++) if(workers[k].load<workers[best].load) best=k;
+   workers[best][type]++;
+   workers[best].load+=time;
+  }
+ }
+ return {workers,ok:workers.every(w=>w.load<=windowSec+1e-8)};
+}
+function main(){
+ const q=Number($('q').value),p=Number($('p').value),minutes=Number($('minutes').value),stock=Number($('stock').value),key=$('option').value;
+ if(!Number.isInteger(q)||q<0||q>1000000){alert('El pedido debe ser un entero entre 0 y 1 000 000.');return}
+ if(!Number.isFinite(p)||p<0||p>1){alert('La proporción C debe estar entre 0 y 1.');return}
+ if(!Number.isFinite(minutes)||minutes<=0){alert('Los minutos netos deben ser mayores que cero.');return}
+ if(!Number.isInteger(stock)||stock<0){alert('El stock debe ser un entero no negativo.');return}
+ const o=OPTIONS[key],{tv,tc}=routeTimes(o),windowSec=minutes*60,people=o.people;
+ const qc=Math.floor(q*p+0.5),qv=q-qc,tm=(1-p)*tv+p*tc,work=qv*tv+qc*tc;
+ const laborCap=Math.floor((people*windowSec)/tm),materialCap=Math.min(720,stock);
+ const materialFail=q>materialCap,aggregateFail=work>people*windowSec+1e-8;
+ const singleKitFail=Math.max(tv,tc)>windowSec+1e-8;
+ const plan=distribute(qv,qc,tv,tc,people,windowSec);
+ let state='ok',message='Viable: el pedido completo cabe en la carga de cada persona y en los materiales.';
+ if(materialFail){state='bad';message='Inviable: el pedido supera el límite de materiales (platos principales o bolsas/soportes).'}
+ else if(singleKitFail){state='bad';message='Inviable: un solo kit supera la ventana individual disponible de una persona.'}
+ else if(aggregateFail){state='bad';message='Inviable: la carga total supera el tiempo disponible del equipo.'}
+ else if(!plan.ok){state='warn';message='No concluyente: el reparto propuesto sobrecarga a una persona, aunque las cotas globales no descartan el pedido. Hay que revisar el reparto.'}
+ const maxByBounds=Math.min(laborCap,materialCap);
+ // Find the largest order that passes the same indivisible-kit greedy assignment.
+ function can(k){
+  const c=Math.floor(k*p+0.5),v=k-c;
+  if(k>materialCap||v*tv+c*tc>people*windowSec||Math.max(tv,tc)>windowSec)return false;
+  return distribute(v,c,tv,tc,people,windowSec).ok;
+ }
+ let lo=0,hi=Math.max(0,maxByBounds);
+ while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(can(mid))lo=mid;else hi=mid-1}
+ const maxVerified=lo;
+ $('status').className='status '+state;$('status').textContent=message;
+ $('tv').textContent=fmt(tv,2)+' s';$('tc').textContent=fmt(tc,2)+' s';$('tm').textContent=fmt(tm,2)+' s';
+ $('labor').textContent=laborCap.toLocaleString('es-ES')+' kits';$('material').textContent=materialCap.toLocaleString('es-ES')+' kits';
+ $('cost').textContent=euro(o.cost);$('daily').textContent=euro(o.cost);
+ $('maxkits').textContent=maxVerified.toLocaleString('es-ES')+' kits';
+ const valid=state==='ok';
+ $('productivity').textContent=valid?fmt(q/(work/3600),2)+' kits/h-persona':'No verificada';
+ $('summary').textContent='Escenario: '+o.name+'. Pedido: '+q+' kits = '+qv+' V + '+qc+' C. Trabajo requerido: '+fmt(work/60,2)+' min-persona; disponible: '+fmt(people*windowSec/60,0)+' min-persona. Coste incremental: '+euro(o.cost)+' por turno.';
+ $('workers').innerHTML=plan.workers.map(w=>'<tr><td>'+w.name+'</td><td>'+w.v+'</td><td>'+w.c+'</td><td>'+fmt(w.load/60,2)+'</td><td>'+fmt(minutes,0)+' min</td><td>'+(w.load<=windowSec+1e-8?'Dentro':'Excede')+'</td></tr>').join('');
+}
+$('calculate').addEventListener('click',main);
+$('test1').addEventListener('click',()=>{$('q').value=660;$('p').value=.4;$('option').value='ref';$('minutes').value=420;$('stock').value=700;main()});
+$('test2').addEventListener('click',()=>{$('q').value=660;$('p').value=.4;$('option').value='A';$('minutes').value=420;$('stock').value=700;main()});
+$('test3').addEventListener('click',()=>{$('q').value=660;$('p').value=.9;$('option').value='B';$('minutes').value=420;$('stock').value=700;main()});
+main();
+</script>
+</body>
+</html>
